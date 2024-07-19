@@ -27,5 +27,8 @@
     ORDER BY commonGenres DESC
     LIMIT 25
 
-
 ### PROC 
+    CALL recommend.similarMoviesByGenre('Hamlet')
+    YIELD title, commonGenres
+    RETURN title, commonGenres
+
