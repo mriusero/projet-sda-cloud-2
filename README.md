@@ -620,8 +620,63 @@
 
 
 ### 14) Find the users with the most similar preferences to Cynthia Freeman, according to cosine similarity function
-    TODO:
-    hint :  gds.similarity.cosine
+    // 1. Récupérer les notes de Cynthia Freeman
+    MATCH (targetUserNode:User {name: 'Cynthia Freeman'})-[r1:RATED]->(movie:Movie)
+    WITH targetUserNode, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
+    
+    // 2. Récupérer les notes des autres utilisateurs
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> 'Cynthia Freeman'
+    WITH targetUserNode, targetMovies, targetRatings, otherUser, COLLECT(movie) AS otherMovies, COLLECT(r2.rating) AS otherRatings
+    
+    // 3. Trouver les films communs et les notes correspondantes
+    WITH targetUserNode, otherUser,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+    
+    // Associer les notes de Cynthia et des autres utilisateurs pour les films communs
+    WITH targetUserNode, otherUser, commonMovies
+    MATCH (targetUserNode)-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUserNode, otherUser, commonMovies,
+    COLLECT(r1.rating) AS targetCommonRatings
+    
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUserNode, otherUser, commonMovies,
+    targetCommonRatings, COLLECT(r2.rating) AS otherCommonRatings
+    
+    // 4. Calculer la similarité basée sur les notes
+    WITH otherUser,
+    gds.similarity.cosine(targetCommonRatings, otherCommonRatings) AS cosineSimilarity
+    
+    // 5. Retourner les utilisateurs les plus similaires
+    RETURN otherUser.name AS similarUser, cosineSimilarity
+    ORDER BY cosineSimilarity DESC
+    LIMIT 10
+
+    ╒══════════════════╤════════════════╕
+    │similarUser       │cosineSimilarity│
+    ╞══════════════════╪════════════════╡
+    │"Jessica Wilson"  │1.0             │
+    ├──────────────────┼────────────────┤
+    │"Tracey Irwin"    │1.0             │
+    ├──────────────────┼────────────────┤
+    │"Erin Jensen"     │1.0             │
+    ├──────────────────┼────────────────┤
+    │"Daniel Lester"   │1.0             │
+    ├──────────────────┼────────────────┤
+    │"Hannah Garcia"   │1.0             │
+    ├──────────────────┼────────────────┤
+    │"John Miller"     │1.0             │
+    ├──────────────────┼────────────────┤
+    │"Phillip Benjamin"│1.0             │
+    ├──────────────────┼────────────────┤
+    │"Daniel Mcbride"  │1.0             │
+    ├──────────────────┼────────────────┤
+    │"Leslie Kennedy"  │1.0             │
+    ├──────────────────┼────────────────┤
+    │"Kathleen Cordova"│1.0             │
+    └──────────────────┴────────────────┘
 
 ## Pearson Similarity
 ### 15) Find users most similar to Cynthia Freeman, according to Pearson similarity
