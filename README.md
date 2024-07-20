@@ -464,10 +464,100 @@
 
 ## Collaborative Filtering – The Wisdom of Crowds
 ### 12) For a particular user, what genres have a higher-than-average rating? Use this to score similar movies
-    TODO :
     // 1 compute mean rating
+    // Trouver les notes données par l'utilisateur et associer les genres
+    MATCH (user:User {name: 'Misty Williams'})-[r:RATED]->(movie:Movie)-[:IN_GENRE]->(genre:Genre)
+    WITH genre, AVG(r.rating) AS averageRatingPerGenre
+    RETURN genre.name AS genreName, averageRatingPerGenre
+    ORDER BY averageRatingPerGenre DESC
+
+    ╒═════════════╤═════════════════════╕
+    │genreName    │averageRatingPerGenre│
+    ╞═════════════╪═════════════════════╡
+    │"Film-Noir"  │4.333333333333334    │
+    ├─────────────┼─────────────────────┤
+    │"War"        │4.0                  │
+    ├─────────────┼─────────────────────┤
+    │"Documentary"│4.0                  │
+    ├─────────────┼─────────────────────┤
+    │"Children"   │3.923076923076923    │
+    ├─────────────┼─────────────────────┤
+    │"Animation"  │3.88235294117647     │
+    ├─────────────┼─────────────────────┤
+
     // 2 find genres with higher than average rating and their number of rated movies
+    // Calculer la note moyenne globale de l'utilisateur
+    MATCH (user:User {name: 'Misty Williams'})-[r:RATED]->(movie:Movie)
+    WITH AVG(r.rating) AS averageRating
+    
+    // Trouver les notes données par l'utilisateur, associer les genres, et compter le nombre de notes par genre
+    MATCH (user)-[r:RATED]->(movie:Movie)-[:IN_GENRE]->(genre:Genre)
+    WITH genre, AVG(r.rating) AS averageRatingPerGenre, COUNT(r) AS ratingCount, averageRating
+    
+    // Filtrer les genres avec des notes moyennes supérieures à la moyenne de l'utilisateur
+    WHERE averageRatingPerGenre > averageRating
+    
+    // Retourner les genres avec leur note moyenne et le nombre de notes
+    RETURN genre.name AS genreName, averageRatingPerGenre, ratingCount
+    ORDER BY averageRatingPerGenre DESC
+
+    ╒════════════════════╤═════════════════════╤═══════════╕
+    │genreName           │averageRatingPerGenre│ratingCount│
+    ╞════════════════════╪═════════════════════╪═══════════╡
+    │"Film-Noir"         │3.9557017543859616   │1140       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"War"               │3.8172139303482524   │5025       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Documentary"       │3.813299232736575    │1564       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"(no genres listed)"│3.7777777777777772   │18         │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Drama"             │3.6817795852699167   │44752      │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Crime"             │3.679638509775       │16266      │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Mystery"           │3.6795409836065565   │7625       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Animation"         │3.63606158833063     │6170       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Musical"           │3.598792884371034    │4722       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"IMAX"              │3.571134347275033    │3156       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Western"           │3.5664225941422565   │1912       │
+    ├────────────────────┼─────────────────────┼───────────┤
+    │"Romance"           │3.5561646669425087   │19336      │
+    └────────────────────┴─────────────────────┴───────────┘
+
     // 3 find movies in those genres, that have not been watched yet
+    // Calculer la note moyenne globale de l'utilisateur
+    MATCH (user:User {name: 'Misty Williams'})-[r:RATED]->(movie:Movie)
+    WITH AVG(r.rating) AS averageRating
+    
+    // Trouver les notes données par l'utilisateur, associer les genres, et compter le nombre de notes par genre
+    MATCH (user)-[r:RATED]->(movie:Movie)-[:IN_GENRE]->(genre:Genre)
+    WITH genre, AVG(r.rating) AS averageRatingPerGenre, COUNT(r) AS ratingCount, averageRating
+    
+    // Filtrer les genres avec des notes moyennes supérieures à la moyenne de l'utilisateur
+    WHERE averageRatingPerGenre > averageRating
+    
+    // Trouver les films dans ces genres qui n'ont pas encore été vus par l'utilisateur
+    MATCH (genre)<-[:IN_GENRE]-(unwatchedMovie:Movie)
+    WHERE NOT EXISTS {
+    MATCH (user)-[r:RATED]->(unwatchedMovie)
+    }
+    RETURN genre.name AS genreName, unwatchedMovie.title AS movieTitle, averageRatingPerGenre, ratingCount
+    ORDER BY averageRatingPerGenre DESC
+
+    ╒════════════════════╤════════════════════════════════════════════════════════════════╤═════════════════════╤═══════════╕
+    │genreName           │movieTitle                                                      │averageRatingPerGenre│ratingCount│
+    ╞════════════════════╪════════════════════════════════════════════════════════════════╪═════════════════════╪═══════════╡
+    │"Film-Noir"         │"Nightfall"                                                     │3.9557017543859616   │1140       │
+    ├────────────────────┼────────────────────────────────────────────────────────────────┼─────────────────────┼───────────┤
+    │"Film-Noir"         │"Kansas City Confidential"                                      │3.9557017543859616   │1140       │
+    ├────────────────────┼────────────────────────────────────────────────────────────────┼─────────────────────┼───────────┤
+    ...
+
 
 ## Cosine Similarity
 ### 13) Find the users with the most similar preferences to Cynthia Freeman, according to cosine similarity
