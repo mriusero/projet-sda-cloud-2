@@ -400,13 +400,67 @@
 
 ## Leveraging Movie Ratings
 #### 9) Show all ratings by Misty Williams
-    TODO: Create Cypher query
+    MATCH (user:User {name: 'Misty Williams'})-[r:RATED]->(movie:Movie)
+    RETURN movie.title AS movieTitle, r.rating AS userRating, r.timestamp AS ratingTimestamp
+    ORDER BY movieTitle
 
+    ╒══════════════════════════════════════════════════════════════════════╤══════════╤═══════════════╕
+    │movieTitle                                                            │userRating│ratingTimestamp│
+    ╞══════════════════════════════════════════════════════════════════════╪══════════╪═══════════════╡
+    │"12 Angry Men"                                                        │4.0       │855191702      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"20,000 Leagues Under the Sea"                                        │4.0       │855192120      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"2001: A Space Odyssey"                                               │4.0       │855191289      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"39 Steps, The"                                                       │4.0       │855192061      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"A Walk in the Sun"                                                   │4.0       │855194498      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"Abyss, The"                                                          │3.0       │855195373      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"Ace Ventura: Pet Detective"                                          │3.0       │855194560      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"Adventures of Priscilla, Queen of the Desert, The"                   │3.0       │855191289      │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┼───────────────┤
+    │"Adventures of Robin Hood, The"                                       │4.0       │855192033      │
 
 #### 10) Find Misty’s average rating
-    TODO: Create Cypher query
+    MATCH (user:User {name: 'Misty Williams'})-[r:RATED]->(movie:Movie)
+    RETURN user.name AS userName,
+    AVG(r.rating) AS averageRating
+
+    ╒════════════════╤══════════════════╕
+    │userName        │averageRating     │
+    ╞════════════════╪══════════════════╡
+    │"Misty Williams"│3.5342789598108744│
+    └────────────────┴──────────────────┘
+
 #### 11) What are the movies that Misty liked more than average?
-    TODO: Create Cypher query
+    // 1. Calculer la note moyenne de Misty Williams
+    MATCH (user:User {name: 'Misty Williams'})-[r:RATED]->(movie:Movie)
+    WITH AVG(r.rating) AS averageRating
+    
+    // 2. Trouver les films que Misty Williams a notés au-dessus de sa moyenne
+    MATCH (user:User {name: 'Misty Williams'})-[r:RATED]->(movie:Movie)
+    WHERE r.rating > averageRating
+    RETURN movie.title AS movieTitle, r.rating AS userRating
+    ORDER BY userRating DESC
+
+    ╒══════════════════════════════════════════════════════════════════════╤══════════╕
+    │movieTitle                                                            │userRating│
+    ╞══════════════════════════════════════════════════════════════════════╪══════════╡
+    │"Raising Arizona"                                                     │5.0       │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┤
+    │"Jaws"                                                                │5.0       │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┤
+    │"Breaking the Waves"                                                  │5.0       │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┤
+    │"Nosferatu (Nosferatu, eine Symphonie des Grauens)"                   │5.0       │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┤
+    │"Cape Fear"                                                           │5.0       │
+    ├──────────────────────────────────────────────────────────────────────┼──────────┤
+
 
 ## Collaborative Filtering – The Wisdom of Crowds
 ### 12) For a particular user, what genres have a higher-than-average rating? Use this to score similar movies
