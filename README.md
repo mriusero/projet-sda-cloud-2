@@ -5,8 +5,8 @@
 
     CALL apoc.cypher.runFile('data/all-plain.cypher')
 
-## Content-Based Filtering
-### 1) How many reviews does each 'Matrix' movie have?
+## First Query
+### 1) Number of reviews for each Matrix movie
 #### CYPHER
      MATCH (m:Movie)<-[:RATED]-(u:User)
      WHERE m.title CONTAINS 'Matrix'
@@ -18,6 +18,7 @@
     YIELD title, reviews
     RETURN title, reviews
 
+## Content-Based Filtering
 ### 2) Find Items similar to the item you’re looking at now
 #### CYPHER
     :param title => 'Hamlet'
@@ -54,9 +55,13 @@
 ## Similarity Based on Common Genres
 ### 4) Find movies most similar to Inception based on shared genres
 #### CYPHER
-    TODO: Create Cypher query
+    MATCH (inception:Movie {title: 'Inception'})-[:IN_GENRE]->(genre:Genre)<-[:IN_GENRE]-(similar:Movie)
+    WHERE inception <> similar
+    WITH similar, count(genre) AS sharedGenres
+    RETURN similar.title AS recommended_movie, sharedGenres
+    ORDER BY sharedGenres DESC;
 #### PROC 
-    TODO: Proc 
+    CALL movie.findSimilarMovies('Inception')
 
 ## Personalized Recommendations Based on Genres
 ### 5) Recommend movies similar to those the user has already watched
