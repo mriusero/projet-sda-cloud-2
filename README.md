@@ -80,11 +80,33 @@
 #### PROC 
     CALL movie.recommendSimilarMovies('Katie Brown')
 
-
 ## Weighted Content Algorithm
 ### 6) Compute a weighted sum based on the number and types of overlapping traits
 #### CYPHER
-    TODO: Create Cypher query
+    Recommendation score calculation for similar films using a weighted sum of the following traits:
+
+    * Genres (weighting: 5x)
+    * Actors (weighting: 3x)
+    * Directors (weighting: 4x)
+
+    :params 
+    {
+    "title": 'Inception',  
+    }
+
+    MATCH (target:Movie {title: $title})-[:IN_GENRE]->(genre:Genre)<-[:IN_GENRE]-(recommend:Movie)
+    OPTIONAL MATCH (target)-[:ACTED_IN]-(actor:Person)<-[:ACTED_IN]-(recommend)
+    OPTIONAL MATCH (target)-[:DIRECTED]-(director:Person)<-[:DIRECTED]-(recommend)
+    WHERE target <> recommend
+    WITH recommend,
+    COUNT(DISTINCT genre) * 5 AS genreScore,
+    COUNT(DISTINCT actor) * 3 AS actorScore,
+    COUNT(DISTINCT director) * 4 AS directorScore
+    WITH recommend,
+    genreScore + actorScore + directorScore AS totalScore
+    RETURN recommend.title AS movieTitle, totalScore
+    ORDER BY totalScore DESC
+    LIMIT 10;
 
 ## Jaccard Index
 ### 7) What movies are most similar to Inception based on Jaccard similarity of genres?
