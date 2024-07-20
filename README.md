@@ -680,9 +680,137 @@
 
 ## Pearson Similarity
 ### 15) Find users most similar to Cynthia Freeman, according to Pearson similarity
-    TODO:
+    // 1. Récupérer les notes de Cynthia Freeman
+    WITH 'Cynthia Freeman' AS targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
+    
+    // 2. Récupérer les notes des autres utilisateurs
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, targetMovies, targetRatings, otherUser, COLLECT(movie) AS otherMovies, COLLECT(r2.rating) AS otherRatings
+    
+    // 3. Trouver les films communs et les notes correspondantes
+    WITH targetUser, otherUser, targetMovies, targetRatings, otherMovies, otherRatings,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+    
+    // Associer les notes de Cynthia et des autres utilisateurs pour les films communs
+    WITH targetUser, otherUser, commonMovies
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    COLLECT(r1.rating) AS targetCommonRatings
+    
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    targetCommonRatings, COLLECT(r2.rating) AS otherCommonRatings
+    
+    // 4. Calculer les moyennes des notes pour Cynthia et les autres utilisateurs
+    WITH targetUser, otherUser, commonMovies, targetCommonRatings, otherCommonRatings,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(targetCommonRatings) - 1) | sum + targetCommonRatings[i]) / SIZE(targetCommonRatings) AS meanTarget,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(otherCommonRatings) - 1) | sum + otherCommonRatings[i]) / SIZE(otherCommonRatings) AS meanOther
+    
+    // 5. Calculer les produits croisés des écarts par rapport aux moyennes et les écarts quadratiques moyens
+    WITH targetUser, otherUser, meanTarget, meanOther,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(targetCommonRatings) - 1) |
+    sum + ((targetCommonRatings[i] - meanTarget) * (otherCommonRatings[i] - meanOther))) AS covariance,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(targetCommonRatings) - 1) |
+    sum + ((targetCommonRatings[i] - meanTarget) * (targetCommonRatings[i] - meanTarget))) AS varianceTarget,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(otherCommonRatings) - 1) |
+    sum + ((otherCommonRatings[i] - meanOther) * (otherCommonRatings[i] - meanOther))) AS varianceOther
+    
+    // 6. Calculer la similarité de Pearson
+    WITH targetUser, otherUser,
+    CASE WHEN SQRT(varianceTarget) = 0 OR SQRT(varianceOther) = 0 THEN 0 ELSE covariance / (SQRT(varianceTarget) * SQRT(varianceOther)) END AS pearsonSimilarity
+    
+    // 7. Retourner les utilisateurs les plus similaires
+    RETURN otherUser.name AS similarUser, pearsonSimilarity
+    ORDER BY pearsonSimilarity DESC
+    LIMIT 10
+
+    ╒══════════════════╤══════════════════╕
+    │similarUser       │pearsonSimilarity │
+    ╞══════════════════╪══════════════════╡
+    │"Cynthia Owens"   │1.0000000000000002│
+    ├──────────────────┼──────────────────┤
+    │"James Whitehead" │1.0000000000000002│
+    ├──────────────────┼──────────────────┤
+    │"Hannah Armstrong"│1.0000000000000002│
+    ├──────────────────┼──────────────────┤
+    │"Dawn Wood"       │1.0000000000000002│
+    ├──────────────────┼──────────────────┤
+    │"Steven Jones"    │1.0               │
+    ├──────────────────┼──────────────────┤
+    │"Amy Shelton"     │1.0               │
+    ├──────────────────┼──────────────────┤
+    │"Kristin Johnson" │1.0               │
+    ├──────────────────┼──────────────────┤
+    │"Linda Brown"     │1.0               │
+    ├──────────────────┼──────────────────┤
+    │"Craig Bowman"    │1.0               │
+    ├──────────────────┼──────────────────┤
+    │"Leslie Brady"    │1.0               │
+    └──────────────────┴──────────────────┘
 ### 16) Find users most similar to Cynthia Freeman, according to the Pearson similarity function
-    TODO:
+    // 1. Récupérer les notes de Cynthia Freeman
+    WITH 'Cynthia Freeman' AS targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
+    
+    // 2. Récupérer les notes des autres utilisateurs
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, targetMovies, targetRatings, otherUser, COLLECT(movie) AS otherMovies,             COLLECT(r2.rating) AS otherRatings
+    
+    // 3. Trouver les films communs et les notes correspondantes
+    WITH targetUser, otherUser, targetMovies, targetRatings, otherMovies, otherRatings,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+    
+    // Associer les notes de Cynthia et des autres utilisateurs pour les films communs
+    WITH targetUser, otherUser, commonMovies
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    COLLECT(r1.rating) AS targetCommonRatings
+    
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    targetCommonRatings, COLLECT(r2.rating) AS otherCommonRatings
+    
+    // 4. Calculer la similarité de Pearson
+    WITH otherUser,
+    gds.similarity.pearson(targetCommonRatings, otherCommonRatings) AS pearsonSimilarity
+    
+    // 5. Retourner les utilisateurs les plus similaires
+    RETURN otherUser.name AS similarUser, pearsonSimilarity
+    ORDER BY pearsonSimilarity DESC
+    LIMIT 10
+
+    ╒═════════════════╤═════════════════╕
+    │similarUser      │pearsonSimilarity│
+    ╞═════════════════╪═════════════════╡
+    │"Margaret Allen" │1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Tammy Martinez" │1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Steven Jones"   │1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Alison Cooper"  │1.0              │
+    ├─────────────────┼─────────────────┤
+    │"James Whitehead"│1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Amy Shelton"    │1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Gina Estrada"   │1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Shari Bentley"  │1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Kristin Johnson"│1.0              │
+    ├─────────────────┼─────────────────┤
+    │"Mark Adams"     │1.0              │
+    └─────────────────┴─────────────────┘
 
 ## kNN – K-Nearest Neighbors
 ### 17) "Who are the 10 users with tastes in movies most similar to mine? What movies have they rated highly that I haven’t seen yet?"
