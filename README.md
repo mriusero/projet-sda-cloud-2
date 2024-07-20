@@ -561,8 +561,64 @@
 
 ## Cosine Similarity
 ### 13) Find the users with the most similar preferences to Cynthia Freeman, according to cosine similarity
-      TODO
     // Most similar users using Cosine similarity
+    // 1. Récupérer les notes de Cynthia Freeman
+    WITH 'Cynthia Freeman' AS targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
+    
+    // 2. Récupérer les notes des autres utilisateurs
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, targetMovies, targetRatings, otherUser, COLLECT(movie) AS otherMovies, COLLECT(r2.rating) AS otherRatings
+    
+    // 3. Trouver les films communs et les notes correspondantes
+    WITH targetUser, otherUser,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+    
+    // Associer les notes de Cynthia et des autres utilisateurs pour les films communs
+    WITH targetUser, otherUser, commonMovies
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    COLLECT(r1.rating) AS targetCommonRatings
+    
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    targetCommonRatings, COLLECT(r2.rating) AS otherCommonRatings
+    
+    // 4. Calculer le produit scalaire et les normes
+    WITH targetUser, otherUser,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(commonMovies) - 1) |
+    sum + (targetCommonRatings[i] * otherCommonRatings[i])) AS dotProduct,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(targetCommonRatings) - 1) |
+    sum + (targetCommonRatings[i] * targetCommonRatings[i])) AS normTarget,
+    REDUCE(sum = 0, i IN RANGE(0, SIZE(otherCommonRatings) - 1) |
+    sum + (otherCommonRatings[i] * otherCommonRatings[i])) AS normOther
+    
+    // 5. Calculer la similarité cosinus
+    WITH targetUser, otherUser,
+    CASE WHEN normTarget = 0 OR normOther = 0 THEN 0 ELSE dotProduct / (SQRT(normTarget) * SQRT(normOther)) END AS cosineSimilarity
+    
+    // 6. Retourner les utilisateurs les plus similaires
+    RETURN otherUser.name AS similarUser, cosineSimilarity
+    ORDER BY cosineSimilarity DESC
+    LIMIT 10
+    
+    ╒═════════════════╤══════════════════╕
+    │similarUser      │cosineSimilarity  │
+    ╞═════════════════╪══════════════════╡
+    │"James Whitehead"│1.0000000000000002│
+    ├─────────────────┼──────────────────┤
+    │"Angela Watkins" │1.0               │
+    ├─────────────────┼──────────────────┤
+    │"Susan Burnett"  │1.0               │
+    ├─────────────────┼──────────────────┤
+    │"Julia Shaffer"  │1.0               │
+    ├─────────────────┼──────────────────┤
+
+
 ### 14) Find the users with the most similar preferences to Cynthia Freeman, according to cosine similarity function
     TODO:
     hint :  gds.similarity.cosine
