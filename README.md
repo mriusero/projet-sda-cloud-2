@@ -66,9 +66,20 @@
 ## Personalized Recommendations Based on Genres
 ### 5) Recommend movies similar to those the user has already watched
 #### CYPHER
-    TODO: Create Cypher query
+    :params 
+    {
+    "userName": 'Katie Brown'
+    }
+    
+    MATCH (user:User {name: $userName})-[:RATED]->(watched:Movie)-[:IN_GENRE]->(genre:Genre)<-[:IN_GENRE]-(recommend:Movie)
+    WHERE NOT (user)-[:RATED]->(recommend) AND watched <> recommend
+    WITH recommend, COUNT(genre) AS sharedGenres
+    RETURN recommend.title AS movieTitle, sharedGenres
+    ORDER BY sharedGenres DESC
+    LIMIT 10;
 #### PROC 
-    TODO: Proc 
+    CALL movie.recommendSimilarMovies('Katie Brown')
+
 
 ## Weighted Content Algorithm
 ### 6) Compute a weighted sum based on the number and types of overlapping traits
