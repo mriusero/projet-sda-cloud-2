@@ -902,6 +902,7 @@
 
 ## Further Work
 ### Temporal component
+#### Cypher query
     Preferences change over time, use the rating timestamp to consider how more recent 
     ratings might be used to find more relevant recommendations.
 
@@ -956,7 +957,11 @@
     RETURN movie.title AS recommendedMovie, COUNT(similarUser) AS recommendationScore
     ORDER BY recommendationScore DESC
     LIMIT 10
-
+#### Cypher query
+    CALL movie.getSimilarUserRecommendations('Cynthia Freeman')
+    YIELD recommendedMovie, recommendationScore
+    RETURN recommendedMovie, recommendationScore
+#### RESULT
     ╒════════════════════════════════════════════╤═══════════════════╕
     │recommendedMovie                            │recommendationScore│
     ╞════════════════════════════════════════════╪═══════════════════╡
