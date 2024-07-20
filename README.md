@@ -902,8 +902,88 @@
 
 ## Further Work
 ### Temporal component
-    Preferences change over time, use the rating timestamp to consider how more recent ratings might be used to find more relevant recommendations.
+    Preferences change over time, use the rating timestamp to consider how more recent 
+    ratings might be used to find more relevant recommendations.
+
+    // 1. Définir l'utilisateur cible
+    WITH 'Cynthia Freeman' AS targetUser
+    
+    // 2. Obtenir les 10 utilisateurs les plus similaires
+    CALL {
+    WITH targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT({rating: r1.rating, timestamp: r1.timestamp}) AS targetRatings
+
+    // Trouver les autres utilisateurs et leurs évaluations
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, otherUser, targetMovies, COLLECT(movie) AS otherMovies, COLLECT({rating: r2.rating, timestamp: r2.timestamp}) AS otherRatings
+
+    // Identifier les films communs
+    WITH targetUser, otherUser, targetMovies, otherMovies,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+
+    // Extraire les évaluations communes pour l'utilisateur cible
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    COLLECT({rating: r1.rating, timestamp: r1.timestamp}) AS targetCommonRatings
+
+    // Extraire les évaluations communes pour les autres utilisateurs
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH otherUser, targetCommonRatings,
+    COLLECT({rating: r2.rating, timestamp: r2.timestamp}) AS otherCommonRatings
+
+    // Calculer la similarité de Pearson avec pondération
+    WITH otherUser,
+    gds.similarity.pearson(
+        [x IN targetCommonRatings | x.rating * EXP(-0.01 * (timestamp() - x.timestamp))],
+        [x IN otherCommonRatings | x.rating * EXP(-0.01 * (timestamp() - x.timestamp))]
+    ) AS pearsonSimilarity
+    WHERE pearsonSimilarity IS NOT NULL
+
+    RETURN otherUser AS similarUser, pearsonSimilarity
+    ORDER BY pearsonSimilarity DESC
+    LIMIT 10
+    }
+    
+    // 3. Recommander des films basés sur les utilisateurs similaires
+    MATCH (similarUser)-[r:RATED]->(movie:Movie)
+    WHERE NOT EXISTS {
+    MATCH (targetUserNode:User {name: targetUser})-[r2:RATED]->(movie)
+    }
+    RETURN movie.title AS recommendedMovie, COUNT(similarUser) AS recommendationScore
+    ORDER BY recommendationScore DESC
+    LIMIT 10
+
+    ╒════════════════════════════════════════════╤═══════════════════╕
+    │recommendedMovie                            │recommendationScore│
+    ╞════════════════════════════════════════════╪═══════════════════╡
+    │"Forrest Gump"                              │6                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Princess Bride, The"                       │6                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Star Wars: Episode VI - Return of the Jedi"│5                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Sixth Sense, The"                          │4                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Pulp Fiction"                              │4                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Schindler's List"                          │4                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Silence of the Lambs, The"                 │4                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Batman"                                    │4                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Speed"                                     │4                  │
+    ├────────────────────────────────────────────┼───────────────────┤
+    │"Indiana Jones and the Last Crusade"        │4                  │
+    └────────────────────────────────────────────┴───────────────────┘
+
 ### Keyword extraction
     Enhance the traits available using the plot description. How would you model extracted keywords for movies?
+
+
 ### Image recognition using posters
     There are several libraries and APIs that offer image recognition and tagging.
