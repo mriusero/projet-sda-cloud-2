@@ -617,66 +617,79 @@
     ├─────────────────┼──────────────────┤
     │"Julia Shaffer"  │1.0               │
     ├─────────────────┼──────────────────┤
+    │"Heather Mccoy"  │1.0               │
+    ├─────────────────┼──────────────────┤
+    │"Jessica Wilson" │1.0               │
+    ├─────────────────┼──────────────────┤
+    │"Tracey Irwin"   │1.0               │
+    ├─────────────────┼──────────────────┤
+    │"Kim Brooks"     │1.0               │
+    ├─────────────────┼──────────────────┤
+    │"Wayne Smith"    │1.0               │
+    ├─────────────────┼──────────────────┤
+    │"Randy Blake"    │1.0               │
+    └─────────────────┴──────────────────┘
 
 
 ### 14) Find the users with the most similar preferences to Cynthia Freeman, according to cosine similarity function
-    // 1. Récupérer les notes de Cynthia Freeman
-    MATCH (targetUserNode:User {name: 'Cynthia Freeman'})-[r1:RATED]->(movie:Movie)
-    WITH targetUserNode, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
+    // 1. Définir l'utilisateur cible et collecter ses films et notes
+    WITH 'Cynthia Freeman' AS targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
     
     // 2. Récupérer les notes des autres utilisateurs
     MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
-    WHERE otherUser.name <> 'Cynthia Freeman'
-    WITH targetUserNode, targetMovies, targetRatings, otherUser, COLLECT(movie) AS otherMovies, COLLECT(r2.rating) AS otherRatings
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, otherUser, targetMovies, COLLECT(movie) AS otherMovies, COLLECT(r2.rating) AS otherRatings
     
-    // 3. Trouver les films communs et les notes correspondantes
-    WITH targetUserNode, otherUser,
+    // 3. Trouver les films communs
+    WITH targetUser, otherUser, targetMovies, otherMovies,
     [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
     
-    // Associer les notes de Cynthia et des autres utilisateurs pour les films communs
-    WITH targetUserNode, otherUser, commonMovies
-    MATCH (targetUserNode)-[r1:RATED]->(m:Movie)
+    // 4. Associer les notes de Cynthia et des autres utilisateurs pour les films communs
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
     WHERE m IN commonMovies
-    WITH targetUserNode, otherUser, commonMovies,
+    WITH targetUser, otherUser, commonMovies,
     COLLECT(r1.rating) AS targetCommonRatings
     
     MATCH (otherUser)-[r2:RATED]->(m:Movie)
     WHERE m IN commonMovies
-    WITH targetUserNode, otherUser, commonMovies,
+    WITH targetUser, otherUser, commonMovies,
     targetCommonRatings, COLLECT(r2.rating) AS otherCommonRatings
     
-    // 4. Calculer la similarité basée sur les notes
+    // 5. Calculer la similarité cosinus
     WITH otherUser,
     gds.similarity.cosine(targetCommonRatings, otherCommonRatings) AS cosineSimilarity
+    WHERE cosineSimilarity IS NOT NULL
     
-    // 5. Retourner les utilisateurs les plus similaires
-    RETURN otherUser.name AS similarUser, cosineSimilarity
+    // 6. Retourner les utilisateurs avec leur similarité
+    RETURN otherUser, cosineSimilarity
     ORDER BY cosineSimilarity DESC
     LIMIT 10
 
-    ╒══════════════════╤════════════════╕
-    │similarUser       │cosineSimilarity│
-    ╞══════════════════╪════════════════╡
-    │"Jessica Wilson"  │1.0             │
-    ├──────────────────┼────────────────┤
-    │"Tracey Irwin"    │1.0             │
-    ├──────────────────┼────────────────┤
-    │"Erin Jensen"     │1.0             │
-    ├──────────────────┼────────────────┤
-    │"Daniel Lester"   │1.0             │
-    ├──────────────────┼────────────────┤
-    │"Hannah Garcia"   │1.0             │
-    ├──────────────────┼────────────────┤
-    │"John Miller"     │1.0             │
-    ├──────────────────┼────────────────┤
-    │"Phillip Benjamin"│1.0             │
-    ├──────────────────┼────────────────┤
-    │"Daniel Mcbride"  │1.0             │
-    ├──────────────────┼────────────────┤
-    │"Leslie Kennedy"  │1.0             │
-    ├──────────────────┼────────────────┤
-    │"Kathleen Cordova"│1.0             │
-    └──────────────────┴────────────────┘
+    ╒═══════════════════════════════════════════════╤════════════════╕
+    │otherUser                                      │cosineSimilarity│
+    ╞═══════════════════════════════════════════════╪════════════════╡
+    │(:User {name: "Linda Whitaker",userId: "54"})  │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Kevin Hill",userId: "37"})      │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Patricia Johnson",userId: "53"})│1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Jessica Wilson",userId: "6"})   │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Wayne Smith",userId: "16"})     │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Andrew Willis",userId: "31"})   │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Tracey Irwin",userId: "9"})     │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Michael Stone",userId: "28"})   │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "Kim Brooks",userId: "12"})      │1.0             │
+    ├───────────────────────────────────────────────┼────────────────┤
+    │(:User {name: "John Wiggins",userId: "62"})    │1.0             │
+    └───────────────────────────────────────────────┴────────────────┘
 
 ## Pearson Similarity
 ### 15) Find users most similar to Cynthia Freeman, according to Pearson similarity
@@ -753,7 +766,7 @@
     │"Leslie Brady"    │1.0               │
     └──────────────────┴──────────────────┘
 ### 16) Find users most similar to Cynthia Freeman, according to the Pearson similarity function
-    // 1. Récupérer les notes de Cynthia Freeman
+    // 1. Définir l'utilisateur cible et collecter ses films et notes
     WITH 'Cynthia Freeman' AS targetUser
     MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
     WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
@@ -761,14 +774,13 @@
     // 2. Récupérer les notes des autres utilisateurs
     MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
     WHERE otherUser.name <> targetUser
-    WITH targetUser, targetMovies, targetRatings, otherUser, COLLECT(movie) AS otherMovies,             COLLECT(r2.rating) AS otherRatings
+    WITH targetUser, otherUser, targetMovies, COLLECT(movie) AS otherMovies, COLLECT(r2.rating) AS otherRatings
     
-    // 3. Trouver les films communs et les notes correspondantes
-    WITH targetUser, otherUser, targetMovies, targetRatings, otherMovies, otherRatings,
+    // 3. Trouver les films communs
+    WITH targetUser, otherUser, targetMovies, otherMovies,
     [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
     
-    // Associer les notes de Cynthia et des autres utilisateurs pour les films communs
-    WITH targetUser, otherUser, commonMovies
+    // 4. Associer les notes de Cynthia et des autres utilisateurs pour les films communs
     MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
     WHERE m IN commonMovies
     WITH targetUser, otherUser, commonMovies,
@@ -779,45 +791,114 @@
     WITH targetUser, otherUser, commonMovies,
     targetCommonRatings, COLLECT(r2.rating) AS otherCommonRatings
     
-    // 4. Calculer la similarité de Pearson
+    // 5. Calculer la similarité de Pearson
     WITH otherUser,
     gds.similarity.pearson(targetCommonRatings, otherCommonRatings) AS pearsonSimilarity
+    WHERE pearsonSimilarity IS NOT NULL
     
-    // 5. Retourner les utilisateurs les plus similaires
-    RETURN otherUser.name AS similarUser, pearsonSimilarity
+    // 6. Retourner les utilisateurs avec leur similarité
+    RETURN otherUser, pearsonSimilarity
     ORDER BY pearsonSimilarity DESC
     LIMIT 10
 
-    ╒═════════════════╤═════════════════╕
-    │similarUser      │pearsonSimilarity│
-    ╞═════════════════╪═════════════════╡
-    │"Margaret Allen" │1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Tammy Martinez" │1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Steven Jones"   │1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Alison Cooper"  │1.0              │
-    ├─────────────────┼─────────────────┤
-    │"James Whitehead"│1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Amy Shelton"    │1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Gina Estrada"   │1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Shari Bentley"  │1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Kristin Johnson"│1.0              │
-    ├─────────────────┼─────────────────┤
-    │"Mark Adams"     │1.0              │
-    └─────────────────┴─────────────────┘
+    ╒═══════════════════════════════════════════════╤═════════════════╕
+    │otherUser                                      │pearsonSimilarity│
+    ╞═══════════════════════════════════════════════╪═════════════════╡
+    │(:User {name: "Jake Mathews",userId: "166"})   │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Alison Cooper",userId: "209"})  │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Tammy Martinez",userId: "98"})  │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Crystal Strong",userId: "142"}) │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Steven Jones",userId: "204"})   │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Cynthia Owens",userId: "33"})   │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Hannah Armstrong",userId: "79"})│1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Margaret Allen",userId: "10"})  │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Jeffrey Myers",userId: "141"})  │1.0              │
+    ├───────────────────────────────────────────────┼─────────────────┤
+    │(:User {name: "Amy Shelton",userId: "218"})    │1.0              │
+    └───────────────────────────────────────────────┴─────────────────┘
 
 ## kNN – K-Nearest Neighbors
-### 17) "Who are the 10 users with tastes in movies most similar to mine? What movies have they rated highly that I haven’t seen yet?"
-kNN movie recommendation using Pearson similarity
+### 17) kNN movie recommendation using Pearson similarity
+    // 1. Définir l'utilisateur cible
+    WITH 'Cynthia Freeman' AS targetUser
+    
+    // 2. Obtenir les 10 utilisateurs les plus similaires
+    CALL {
+    WITH targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT(r1.rating) AS targetRatings
 
-    TODO
+    // Trouver les autres utilisateurs et leurs évaluations
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, otherUser, targetMovies, COLLECT(movie) AS otherMovies, COLLECT(r2.rating) AS otherRatings
 
+    // Identifier les films communs
+    WITH targetUser, otherUser, targetMovies, otherMovies,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+
+    // Extraire les évaluations communes pour l'utilisateur cible
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    COLLECT(r1.rating) AS targetCommonRatings
+
+    // Extraire les évaluations communes pour les autres utilisateurs
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH otherUser, targetCommonRatings, COLLECT(r2.rating) AS otherCommonRatings
+
+    // Calculer la similarité de Pearson
+    WITH otherUser,
+    gds.similarity.pearson(targetCommonRatings, otherCommonRatings) AS pearsonSimilarity
+    WHERE pearsonSimilarity IS NOT NULL
+
+    RETURN otherUser AS similarUser, pearsonSimilarity
+    ORDER BY pearsonSimilarity DESC
+    LIMIT 10
+    }
+    
+    // 3. Recommander des films basés sur les utilisateurs similaires
+    MATCH (similarUser)-[r:RATED]->(movie:Movie)
+    WHERE NOT EXISTS {
+    MATCH (targetUserNode:User {name: targetUser})-[r2:RATED]->(movie)
+    }
+    RETURN movie.title AS recommendedMovie, COUNT(similarUser) AS recommendationScore
+    ORDER BY recommendationScore DESC
+    LIMIT 10
+
+    ╒══════════════════════════════════════════════════════════════════════╤═══════════════════╕
+    │recommendedMovie                                                      │recommendationScore│
+    ╞══════════════════════════════════════════════════════════════════════╪═══════════════════╡
+    │"Forrest Gump"                                                        │5                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Star Wars: Episode V - The Empire Strikes Back"                      │5                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Raiders of the Lost Ark (Indiana Jones and the Raiders of the Lost Ar│4                  │
+    │k)"                                                                   │                   │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Princess Bride, The"                                                 │4                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Toy Story 2"                                                         │3                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Indiana Jones and the Last Crusade"                                  │3                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Titanic"                                                             │3                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Jurassic Park"                                                       │3                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Star Wars: Episode IV - A New Hope"                                  │3                  │
+    ├──────────────────────────────────────────────────────────────────────┼───────────────────┤
+    │"Ferris Bueller's Day Off"                                            │3                  │
+    └──────────────────────────────────────────────────────────────────────┴───────────────────┘
 
 ## Further Work
 ### Temporal component
