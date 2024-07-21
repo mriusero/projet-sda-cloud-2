@@ -38,7 +38,7 @@ def extract_keywords(text):
     # Calculer la fréquence des mots
     freq_dist = FreqDist(filtered_tokens)
     # Obtenir les 10 mots les plus fréquents
-    most_common_words = freq_dist.most_common(10)
+    most_common_words = freq_dist.most_common(5)
     # Extraire les mots (en excluant les fréquences)
     keywords = [word for word, freq in most_common_words]
     return keywords if keywords else []
