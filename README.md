@@ -986,9 +986,114 @@
     │"Indiana Jones and the Last Crusade"        │4                  │
     └────────────────────────────────────────────┴───────────────────┘
 
+# In Progress
+
 ### Keyword extraction
     Enhance the traits available using the plot description. How would you model extracted keywords for movies?
+
+    // 1. Définir l'utilisateur cible
+    WITH 'Cynthia Freeman' AS targetUser
+    
+    // 2. Obtenir les 10 utilisateurs les plus similaires
+    CALL {
+    WITH targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT({rating: r1.rating, timestamp: r1.timestamp}) AS targetRatings
+
+    // Trouver les autres utilisateurs et leurs évaluations
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, otherUser, targetMovies, COLLECT(movie) AS otherMovies, COLLECT({rating: r2.rating, timestamp: r2.timestamp}) AS otherRatings
+
+    // Identifier les films communs
+    WITH targetUser, otherUser, targetMovies, otherMovies,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+
+    // Extraire les évaluations communes pour l'utilisateur cible
+    MATCH (targetUserNode)-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    COLLECT({rating: r1.rating, timestamp: r1.timestamp}) AS targetCommonRatings
+
+    // Extraire les évaluations communes pour les autres utilisateurs
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH otherUser, targetCommonRatings,
+    COLLECT({rating: r2.rating, timestamp: r2.timestamp}) AS otherCommonRatings
+
+    // Filtrer les utilisateurs avec des vecteurs valides
+    WITH otherUser, targetCommonRatings, otherCommonRatings
+    WHERE SIZE(targetCommonRatings) > 0 AND SIZE(otherCommonRatings) > 0
+    AND SIZE(targetCommonRatings) = SIZE(otherCommonRatings)
+
+    // Calculer la similarité de Pearson avec pondération
+    WITH otherUser,
+    gds.similarity.pearson(
+        [x IN targetCommonRatings | x.rating * EXP(-0.01 * (timestamp() - x.timestamp))],
+        [x IN otherCommonRatings | x.rating * EXP(-0.01 * (timestamp() - x.timestamp))]
+    ) AS pearsonSimilarity
+    WHERE pearsonSimilarity IS NOT NULL
+
+    RETURN otherUser AS similarUser, pearsonSimilarity
+    ORDER BY pearsonSimilarity DESC
+    LIMIT 10
+    }
+    
+    // 3. Recommander des films basés sur les utilisateurs similaires
+    MATCH (similarUser)-[r:RATED]->(movie:Movie)
+    WHERE NOT EXISTS {
+    MATCH (targetUserNode:User {name: targetUser})-[r2:RATED]->(movie)
+    }
+    WITH movie, COLLECT(similarUser) AS similarUsers
+    
+    // Obtenez les mots-clés pour les films recommandés
+    MATCH (movie)-[:HAS_KEYWORDS]->(keyword:Keyword)
+    WITH movie, similarUsers, COLLECT(keyword.word) AS movieKeywords
+    
+    // Obtenez les mots-clés pour les films évalués par l'utilisateur cible
+    MATCH (targetUserNode)-[r1:RATED]->(targetMovie:Movie)
+    MATCH (targetMovie)-[:HAS_KEYWORDS]->(keyword:Keyword)
+    WITH movie, similarUsers, movieKeywords,
+    COLLECT(keyword.word) AS targetMovieKeywords
+    
+    // Calculer la similarité basée sur les mots-clés (ex: Jaccard)
+    WITH movie, similarUsers, movieKeywords, targetMovieKeywords,
+    SIZE([k IN movieKeywords WHERE k IN targetMovieKeywords]) * 1.0 / SIZE(movieKeywords + targetMovieKeywords) AS keywordSimilarity
+    
+    // Calculer le score de recommandation basé sur le nombre d'utilisateurs similaires
+    WITH movie, SIZE(similarUsers) AS userRecommendationScore, keywordSimilarity
+    
+    // Calculer le score total combiné
+    WITH movie,
+    userRecommendationScore,
+    keywordSimilarity,
+    (userRecommendationScore * 0.7 + keywordSimilarity * 0.3) AS combinedScore
+    
+    RETURN movie.title AS recommendedMovie, combinedScore
+    ORDER BY combinedScore DESC
+    LIMIT 10
+
+    CALL movie.getSimilarEnhancedRecommendations('Cynthia Freeman')
+    YIELD recommendedMovie, recommendationScore
+    RETURN recommendedMovie, recommendationScore
+
+
+
+### Extract keyword (process with nltk via Python)
+    CALL movie.ExtractKeyword(
+    "James Bond teams up with the lone survivor of a destroyed Russian research center to stop the hijacking of a nuclear space weapon by a fellow agent formerly believed to be dead."
+    ) YIELD message
+    RETURN message
+
+    ["james", "bond", "teams", "lone", "survivor", "destroyed", "russian", "research", "center", "stop"]
+
 
 
 ### Image recognition using posters
     There are several libraries and APIs that offer image recognition and tagging.
+
+
+
+
+
+    
