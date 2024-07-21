@@ -900,10 +900,250 @@
     │"Ferris Bueller's Day Off"                                            │3                  │
     └──────────────────────────────────────────────────────────────────────┴───────────────────┘
 
-## Further Work
-### Temporal component
-    Preferences change over time, use the rating timestamp to consider how more recent ratings might be used to find more relevant recommendations.
-### Keyword extraction
-    Enhance the traits available using the plot description. How would you model extracted keywords for movies?
-### Image recognition using posters
-    There are several libraries and APIs that offer image recognition and tagging.
+# Further Work
+## Temporal component
+### Cypher query
+    Preferences change over time, use the rating timestamp to consider how more recent 
+    ratings might be used to find more relevant recommendations.
+
+    // 1. Définir l'utilisateur cible
+    WITH 'Cynthia Freeman' AS targetUser
+    
+    // 2. Obtenir les 10 utilisateurs les plus similaires
+    CALL {
+    WITH targetUser
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(movie:Movie)
+    WITH targetUser, COLLECT(movie) AS targetMovies, COLLECT({rating: r1.rating, timestamp: r1.timestamp}) AS targetRatings
+
+    // Trouver les autres utilisateurs et leurs évaluations
+    MATCH (otherUser:User)-[r2:RATED]->(movie:Movie)
+    WHERE otherUser.name <> targetUser
+    WITH targetUser, otherUser, targetMovies, COLLECT(movie) AS otherMovies, COLLECT({rating: r2.rating, timestamp: r2.timestamp}) AS otherRatings
+
+    // Identifier les films communs
+    WITH targetUser, otherUser, targetMovies, otherMovies,
+    [m IN targetMovies WHERE m IN otherMovies] AS commonMovies
+
+    // Extraire les évaluations communes pour l'utilisateur cible
+    MATCH (targetUserNode:User {name: targetUser})-[r1:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH targetUser, otherUser, commonMovies,
+    COLLECT({rating: r1.rating, timestamp: r1.timestamp}) AS targetCommonRatings
+
+    // Extraire les évaluations communes pour les autres utilisateurs
+    MATCH (otherUser)-[r2:RATED]->(m:Movie)
+    WHERE m IN commonMovies
+    WITH otherUser, targetCommonRatings,
+    COLLECT({rating: r2.rating, timestamp: r2.timestamp}) AS otherCommonRatings
+
+    // Calculer la similarité de Pearson avec pondération
+    WITH otherUser,
+    gds.similarity.pearson(
+        [x IN targetCommonRatings | x.rating * EXP(-0.01 * (timestamp() - x.timestamp))],
+        [x IN otherCommonRatings | x.rating * EXP(-0.01 * (timestamp() - x.timestamp))]
+    ) AS pearsonSimilarity
+    WHERE pearsonSimilarity IS NOT NULL
+
+    RETURN otherUser AS similarUser, pearsonSimilarity
+    ORDER BY pearsonSimilarity DESC
+    LIMIT 10
+    }
+
+    // 3. Recommander des films basés sur les utilisateurs similaires
+    MATCH (similarUser)-[r:RATED]->(movie:Movie)
+    WHERE NOT EXISTS {
+    MATCH (targetUserNode:User {name: targetUser})-[r2:RATED]->(movie)
+    }
+    RETURN movie.title AS recommendedMovie, COUNT(similarUser) AS recommendationScore, COALESCE(movie.poster, '') AS posterUrl
+    ORDER BY recommendationScore DESC
+    LIMIT 10
+
+### RESULT
+    ╒════════════════════════════════════════════╤═══════════════════╤══════════════════════════════════════════════════════════════════════╕
+    │recommendedMovie                            │recommendationScore│posterUrl                                                             │
+    ╞════════════════════════════════════════════╪═══════════════════╪══════════════════════════════════════════════════════════════════════╡
+    │"Forrest Gump"                              │6                  │"https://image.tmdb.org/t/p/w440_and_h660_face/clolk7rB5lAjs41SD0Vt6IX│
+    │                                            │                   │YLMm.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Princess Bride, The"                       │6                  │"https://image.tmdb.org/t/p/w440_and_h660_face/2FC9L9MrjBoGHYjYZjdWQdo│
+    │                                            │                   │pVYb.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Star Wars: Episode VI - Return of the Jedi"│5                  │"https://image.tmdb.org/t/p/w440_and_h660_face/mDCBQNhR6R0PVFucJl0O4Hp│
+    │                                            │                   │5klZ.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Sixth Sense, The"                          │4                  │"https://image.tmdb.org/t/p/w440_and_h660_face/fIssD3w3SvIhPPmVo4WMgZD│
+    │                                            │                   │VLID.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Pulp Fiction"                              │4                  │"https://image.tmdb.org/t/p/w440_and_h660_face/yAaf4ybTENKPicqzsAoW6Em│
+    │                                            │                   │xrag.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Schindler's List"                          │4                  │"https://image.tmdb.org/t/p/w440_and_h660_face/c8Ass7acuOe4za6DhSattE3│
+    │                                            │                   │59gr.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Silence of the Lambs, The"                 │4                  │"https://image.tmdb.org/t/p/w440_and_h660_face/rplLJ2hPcOQmkFhTqUte0Mk│
+    │                                            │                   │EaO2.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Batman"                                    │4                  │"https://image.tmdb.org/t/p/w440_and_h660_face/lH3dsbxA4wLalWKNYpVldX8│
+    │                                            │                   │zfPP.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Speed"                                     │4                  │"https://image.tmdb.org/t/p/w440_and_h660_face/Apu3Ecg11bIEEiKLnbhagGt│
+    │                                            │                   │WNg7.jpg"                                                             │
+    ├────────────────────────────────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────┤
+    │"Indiana Jones and the Last Crusade"        │4                  │"https://image.tmdb.org/t/p/w440_and_h660_face/sizg1AU8f8JDZX4QIgE4pjU│
+    │                                            │                   │MBvx.jpg"                                                             │
+    └────────────────────────────────────────────┴───────────────────┴──────────────────────────────────────────────────────────────────────┘
+
+## Keyword extraction (process with nltk via Python)
+### Python script     
+    CALL movie.ExtractKeyword(
+    "James Bond teams up with the lone survivor of a destroyed Russian research center to stop the hijacking of a nuclear space weapon by a fellow agent formerly believed to be dead."
+    ) YIELD message
+    RETURN message
+
+    ["james", "bond", "teams", "lone", "survivor", "destroyed", "russian", "research", "center", "stop"]
+### Keyword Nodes creation
+    // Trouver tous les nœuds Movie
+    MATCH (m:Movie)
+    
+    // Compter le nombre total de films à traiter
+    WITH COUNT(m) AS totalMovies
+    
+    // Pour chaque nœud Movie, extraire les mots-clés
+    MATCH (m:Movie)
+    CALL movie.ExtractKeyword(m.plot) YIELD message AS jsonMessage
+    
+    // Nettoyer la chaîne JSON
+    WITH m, REPLACE(REPLACE(REPLACE(jsonMessage, '\n', ''), '\r', ''), '\"', '"') AS cleanedJson, totalMovies
+    
+    // Convertir la chaîne JSON en liste de mots-clés
+    WITH m, apoc.convert.fromJsonList(cleanedJson) AS keywords, totalMovies
+    
+    // Créer les nœuds Keyword et les relations avec le nœud Movie
+    UNWIND keywords AS keyword
+    // Assurez-vous que le mot-clé est unique et existe, sinon créez-le
+    MERGE (k:Keyword {name: keyword})
+    // Créer la relation entre le nœud Movie et le nœud Keyword
+    MERGE (m)-[:HAS_KEYWORD]->(k)
+    
+    // Calculer la progression
+    WITH totalMovies, COUNT(m) AS processedMovies
+    
+    // Retourner la progression
+    RETURN processedMovies, totalMovies, ROUND(100.0 * processedMovies / totalMovies, 2) AS progressPercentage
+
+### Result
+    MATCH p=()-[r:HAS_KEYWORD]->() RETURN p
+[Keyword Nodes](keyword_nodes.png)
+
+## Image recognition with Google Vision API (LABEL_DETECTION)
+### Python script 
+    CALL movie.AnalyzeImage("https://image.tmdb.org/t/p/w440_and_h660_face/pUGDwL3bo0fWoaZGeTGgkP1Tuuz.jpg") YIELD message
+    RETURN message
+
+    ["Chin", "Vision care", "Beard", "Eyewear", "Poster"]
+### Label Nodes creation
+    // Étape 1: Compter le nombre total de films avec un poster non nul
+    MATCH (m:Movie)
+    WHERE m.poster IS NOT NULL
+    WITH COUNT(m) AS totalMovies
+    
+    // Étape 2: Traiter chaque film avec un poster non nul
+    MATCH (m:Movie)
+    WHERE m.poster IS NOT NULL
+    CALL movie.AnalyzeImage(m.poster) YIELD message AS jsonMessage
+    
+    // Nettoyer la chaîne JSON
+    WITH m, REPLACE(REPLACE(REPLACE(jsonMessage, '\n', ''), '\r', ''), '\"', '"') AS cleanedJson, totalMovies
+    
+    // Convertir la chaîne JSON en liste de labels
+    WITH m, apoc.convert.fromJsonList(cleanedJson) AS labels, totalMovies
+    
+    // Créer les nœuds Label et les relations avec les nœuds Movie
+    UNWIND labels AS label
+    MERGE (l:Label {name: label})
+    MERGE (m)-[:HAS_LABEL]->(l)
+    
+    // Étape 3: Calculer la progression
+    WITH COUNT(DISTINCT m) AS processedMovies, totalMovies
+    RETURN processedMovies, totalMovies, ROUND(100.0 * processedMovies / totalMovies, 2) AS progressPercentage
+### Result
+    MATCH p=()-[r:HAS_LABEL]->() RETURN p 
+[Label Nodes](label_nodes.png)
+
+
+## Final Query 
+    // Temporal rating + Keyword analysis + Label analysis #ToDo
+    CALL recommend.getRecommendations('Cynthia Freeman')
+
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .movie-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .movie-item {
+      flex: 1 1 150px;
+      max-width: 150px;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+    .movie-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .movie-title {
+      text-align: center;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="movie-grid">
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/clolk7rB5lAjs41SD0Vt6IXYLMm.jpg" alt="Forrest Gump">
+      <div class="movie-title">Forrest Gump</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/2FC9L9MrjBoGHYjYZjdWQdopVYb.jpg" alt="Princess Bride, The">
+      <div class="movie-title">Princess Bride, The</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/mDCBQNhR6R0PVFucJl0O4Hp5klZ.jpg" alt="Star Wars: Episode VI - Return of the Jedi">
+      <div class="movie-title">Star Wars: Episode VI - Return of the Jedi</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/fIssD3w3SvIhPPmVo4WMgZDVLID.jpg" alt="Sixth Sense, The">
+      <div class="movie-title">Sixth Sense, The</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/yAaf4ybTENKPicqzsAoW6Emxrag.jpg" alt="Pulp Fiction">
+      <div class="movie-title">Pulp Fiction</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/c8Ass7acuOe4za6DhSattE359gr.jpg" alt="Schindler's List">
+      <div class="movie-title">Schindler's List</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/rplLJ2hPcOQmkFhTqUte0MkEaO2.jpg" alt="Silence of the Lambs, The">
+      <div class="movie-title">Silence of the Lambs, The</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/lH3dsbxA4wLalWKNYpVldX8zfPP.jpg" alt="Batman">
+      <div class="movie-title">Batman</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/Apu3Ecg11bIEEiKLnbhagGtWNg7.jpg" alt="Speed">
+      <div class="movie-title">Speed</div>
+    </div>
+    <div class="movie-item">
+      <img src="https://image.tmdb.org/t/p/w440_and_h660_face/sizg1AU8f8JDZX4QIgE4pjUMBvx.jpg" alt="Indiana Jones and the Last Crusade">
+      <div class="movie-title">Indiana Jones and the Last Crusade</div>
+    </div>
+  </div>
+</body>
+</html>
