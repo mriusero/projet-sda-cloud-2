@@ -13,7 +13,7 @@ public class ExtractKeywordProcedure {
     @Description("Call the Java class that runs a Python script and returns the result.")
     public Stream<Result> ExtractKeyword(@Name("plotText") String plotText) {
         try {
-            // Appeler la méthode de la classe RunPythonScript
+            // Call the Java class that runs a Python script and returns the result
             String scriptOutput = ExtractKeyword.runScript(plotText);
             return Stream.of(new Result(scriptOutput));
         } catch (Exception e) {

@@ -9,17 +9,17 @@ public class AnalyzeImage {
         StringBuilder output = new StringBuilder();
         StringBuilder errorOutput = new StringBuilder();
         try {
-            // Définir le chemin relatif du script Python
-            String scriptPath = "/src/scripts/analyze_image.py";
+            // Define the relative path to the Python script
+            String scriptPath = ".../neo4j-procedure-template-5.x/src/scripts/analyze_image.py";
 
-            // Construire la commande
+            // Build the command
             ProcessBuilder processBuilder = new ProcessBuilder("python3", scriptPath, imageUrl);
             processBuilder.redirectErrorStream(true);
 
-            // Exécuter le script
+            // Execute the script
             Process process = processBuilder.start();
 
-            // Lire la sortie du script
+            // Read the script output
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -27,7 +27,7 @@ public class AnalyzeImage {
                 }
             }
 
-            // Lire les erreurs éventuelles
+            // Read any potential errors
             try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                 String line;
                 while ((line = errorReader.readLine()) != null) {
@@ -35,7 +35,7 @@ public class AnalyzeImage {
                 }
             }
 
-            // Attendre la fin du processus
+            // Wait for the process to finish
             int exitCode = process.waitFor();
             if (exitCode != 0) {
                 System.err.println("Process exited with code " + exitCode);
