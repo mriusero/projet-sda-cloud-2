@@ -9,25 +9,24 @@ public class ExtractKeyword {
         StringBuilder output = new StringBuilder();
         try {
 
+            // Path to the python script
+            String scriptPath = ".../projet-sda-cloud-2/neo4j-procedure-template-5.x/src/scripts/extract_keywords.py";
 
-            // Définir le chemin relatif du script Python
-            String scriptPath = "/Users/mariusayrault/GitHub/Sorb-Data-Analytics/projet-sda-cloud-2/neo4j-procedure-template-5.x/src/scripts/extract_keywords.py";
-
-            // Construire la commande
+            // Build the command
             ProcessBuilder processBuilder = new ProcessBuilder("python3", scriptPath, plotText);
             processBuilder.redirectErrorStream(true);
 
-            // Exécuter le script
+            // Execute the script
             Process process = processBuilder.start();
 
-            // Lire la sortie du script
+            // Read the script output
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
             }
 
-            // Attendre la fin du processus
+            // Wait for the process to finish
             int exitCode = process.waitFor();
             System.out.println("Process exited with code " + exitCode);
         } catch (Exception e) {

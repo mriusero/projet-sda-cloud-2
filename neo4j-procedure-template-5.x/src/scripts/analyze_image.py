@@ -1,11 +1,9 @@
-# analyze_image.py
 import sys
 import json
 import requests
 import base64
 import logging
 
-# Configurer le logging
 logging.basicConfig(filename='error.log', level=logging.ERROR)
 
 API_KEY = 'meow'
@@ -50,7 +48,7 @@ def main():
 
     image_url = sys.argv[1]
     labels = analyze_image(image_url)
-    print(json.dumps(labels, indent=2))  # Affiche les résultats en JSON
+    print(json.dumps(labels, indent=2))
 
 if __name__ == "__main__":
     main()
